@@ -12,6 +12,7 @@ package tm;
 
 import java.io.File;
 
+
 import java.io.FileInputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -25,13 +26,19 @@ import dao.DAOPreferencias;
 import dao.DAOProductosIngredientes;
 import dao.DAORestaurantesZona;
 import dao.DAOServidos;
+
 import dao.DAOUsuarios;
+import dtm.RotondAndesDistributed;
+
+import jms.NonReplyException;
 import vos.Cancelado;
 import vos.CantidadProductoRestaurante;
 import vos.ConsultaPedidos;
 import vos.EquivalenciaIngrediente;
 import vos.EquivalenciaProducto;
 import vos.Ingrediente;
+import vos.ListaProductos;
+
 import vos.Pedido;
 import vos.PedidoMesa;
 import vos.PreferenciaUsuarioCategoria;
@@ -90,6 +97,8 @@ public class RotondAndesTM {
 	 * conexion a la base de datos
 	 */
 	private Connection conn;
+	
+	private RotondAndesDistributed dtm;
 
 
 	/**
@@ -177,37 +186,6 @@ public class RotondAndesTM {
 		return ingredientes;
 	}
 
-	public List<Producto> darProductos() throws Exception {
-		List<Producto> productos;
-		DAOProductosIngredientes daoIngredientes = new DAOProductosIngredientes();
-		try 
-		{
-			//////transaccion
-			this.conn = darConexion();
-			daoIngredientes.setConn(conn);
-			productos = daoIngredientes.darProductos();
-
-		} catch (SQLException e) {
-			System.err.println("SQLException:" + e.getMessage());
-			e.printStackTrace();
-			throw e;
-		} catch (Exception e) {
-			System.err.println("GeneralException:" + e.getMessage());
-			e.printStackTrace();
-			throw e;
-		} finally {
-			try {
-				daoIngredientes.cerrarRecursos();
-				if(this.conn!=null)
-					this.conn.close();
-			} catch (SQLException exception) {
-				System.err.println("SQLException closing resources:" + exception.getMessage());
-				exception.printStackTrace();
-				throw exception;
-			}
-		}
-		return productos;
-	}
 
 	public List<Producto> darProductosRestaurante(Long id) throws Exception {
 		List<Producto> productos;
@@ -1696,5 +1674,60 @@ public class RotondAndesTM {
 			}
 		}
 		return resp;
+	}
+	
+	//----------------------------------------------
+
+	public ListaProductos darProductosLocal() throws Exception {
+		ArrayList<Producto> productos;
+		DAOProductosIngredientes daoProductos = new DAOProductosIngredientes();
+		try 
+		{
+			//////Transacción
+			this.conn = darConexion();
+			daoProductos.setConn(conn);
+			productos = daoProductos.darProductos();
+
+		} catch (SQLException e) {
+			System.err.println("SQLException:" + e.getMessage());
+			e.printStackTrace();
+			throw e;
+		} catch (Exception e) {
+			System.err.println("GeneralException:" + e.getMessage());
+			e.printStackTrace();
+			throw e;
+		} finally {
+			try {
+				daoProductos.cerrarRecursos();
+				if(this.conn!=null)
+					this.conn.close();
+			} catch (SQLException exception) {
+				System.err.println("SQLException closing resources:" + exception.getMessage());
+				exception.printStackTrace();
+				throw exception;
+			}
+		}
+		return new ListaProductos(productos);
+	}
+	
+	
+	/**
+	 * Método que modela la transacción que retorna todos los videos de la base de datos.
+	 * @return ListaVideos - objeto que modela  un arreglo de videos. este arreglo contiene el resultado de la búsqueda
+	 * @throws Exception -  cualquier error que se genere durante la transacción
+	 */
+	public ListaProductos darProductos() throws Exception {
+		ListaProductos remL = darProductosLocal();
+		try
+		{
+			ListaProductos resp = dtm.getRemoteProductos();
+			System.out.println(resp.getProductos().size());
+			remL.getProductos().addAll(resp.getProductos());
+		}
+		catch(NonReplyException e)
+		{
+			
+		}
+		return remL;
 	}
 }

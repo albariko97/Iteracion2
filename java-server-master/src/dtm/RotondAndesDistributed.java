@@ -2,6 +2,7 @@ package dtm;
 
 import java.io.IOException;
 
+
 import java.security.NoSuchAlgorithmException;
 
 import javax.jms.JMSException;
@@ -23,10 +24,10 @@ import org.codehaus.jackson.map.JsonMappingException;
 import com.rabbitmq.jms.admin.RMQConnectionFactory;
 import com.rabbitmq.jms.admin.RMQDestination;
 
-import jms.AllVideosMDB;
+import jms.AllProductosMDB;
 import jms.NonReplyException;
 import tm.RotondAndesTM;
-import vos.ListaVideos;
+import vos.ListaProductos;
 
 public class RotondAndesDistributed 
 {
@@ -41,7 +42,7 @@ public class RotondAndesDistributed
 	
 	private TopicConnectionFactory factory;
 	
-	private AllVideosMDB allVideosMQ;
+	private AllProductosMDB allProdcutosMQ;
 	
 	private static String path;
 
@@ -50,15 +51,15 @@ public class RotondAndesDistributed
 	{
 		InitialContext ctx = new InitialContext();
 		factory = (RMQConnectionFactory) ctx.lookup(MQ_CONNECTION_NAME);
-		allVideosMQ = new AllVideosMDB(factory, ctx);
+		allProdcutosMQ = new AllProductosMDB(factory, ctx);
 		
-		allVideosMQ.start();
+		allProdcutosMQ.start();
 		
 	}
 	
 	public void stop() throws JMSException
 	{
-		allVideosMQ.close();
+		allProdcutosMQ.close();
 	}
 	
 	/**
@@ -69,7 +70,7 @@ public class RotondAndesDistributed
 		path = p;
 	}
 	
-	public void setUpTransactionManager(VideoAndesMaster tm)
+	public void setUpTransactionManager(RotondAndesTM tm)
 	{
 	   this.tm = tm;
 	}
@@ -79,7 +80,7 @@ public class RotondAndesDistributed
 		return instance;
 	}
 	
-	public static RotondAndesDistributed getInstance(VideoAndesMaster tm)
+	public static RotondAndesDistributed getInstance(RotondAndesTM tm)
 	{
 		if(instance == null)
 		{
@@ -100,24 +101,24 @@ public class RotondAndesDistributed
 	{
 		if(instance == null)
 		{
-			VideoAndesMaster tm = new VideoAndesMaster(path);
+			RotondAndesTM tm = new RotondAndesTM(path);
 			return getInstance(tm);
 		}
 		if(instance.tm != null)
 		{
 			return instance;
 		}
-		VideoAndesMaster tm = new VideoAndesMaster(path);
+		RotondAndesTM tm = new RotondAndesTM(path);
 		return getInstance(tm);
 	}
 	
-	public ListaVideos getLocalVideos() throws Exception
+	public ListaProductos getLocalProductos() throws Exception
 	{
-		return tm.darVideosLocal();
+		return tm.darProductosLocal();
 	}
 	
-	public ListaVideos getRemoteVideos() throws JsonGenerationException, JsonMappingException, JMSException, IOException, NonReplyException, InterruptedException, NoSuchAlgorithmException
+	public ListaProductos getRemoteProductos() throws JsonGenerationException, JsonMappingException, JMSException, IOException, NonReplyException, InterruptedException, NoSuchAlgorithmException
 	{
-		return allVideosMQ.getRemoteVideos();
+		return allProdcutosMQ.getRemoteProductos();
 	}
 }
